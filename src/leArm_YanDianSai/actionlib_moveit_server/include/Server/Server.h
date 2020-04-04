@@ -14,7 +14,7 @@ class Server
 {
 public:
     //定义服务端对象
-    server as();
+    server as;
     //服务端goal控制句,处理和转换来自客户端的goal数据
     goalHandle goalHandle_;
 
