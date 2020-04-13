@@ -1,0 +1,11 @@
+moveit_setup_assistant_config:
+  URDF:
+    package: magician_description
+    relative_path: urdf/magician.urdf.xacro
+    xacro_args: "--inorder "
+  SRDF:
+    relative_path: config/magician.srdf
+  CONFIG:
+    author_name: Zhangeaky
+    author_email: zyk090104@163.com
+    generated_timestamp: 1582546660

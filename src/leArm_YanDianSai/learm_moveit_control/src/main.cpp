@@ -5,6 +5,7 @@ int main(int argc, char** argv)
     ROS_INFO("Begin!");
     ros::init(argc,argv,"moveit_action_client");
     ros::NodeHandle n;
+
     moveitClient demo(n);
 
     while(demo.getTrajectoryState().isDone() && ros::ok())

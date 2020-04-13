@@ -1,0 +1,11 @@
+moveit_setup_assistant_config:
+  URDF:
+    package: learm_robot_description_v4
+    relative_path: urdf/learm_robot_description_v4.urdf
+    xacro_args: "--inorder "
+  SRDF:
+    relative_path: config/learm_robot_description_v4.srdf
+  CONFIG:
+    author_name: zhangeaky
+    author_email: zyk090104@163.com
+    generated_timestamp: 1586752612
