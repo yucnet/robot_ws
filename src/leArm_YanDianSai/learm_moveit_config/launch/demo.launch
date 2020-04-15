@@ -26,13 +26,16 @@
   <!-- If needed, broadcast static tf for robot root -->
   
 
-  <!-- We do not have a robot connected, so publish fake joint states -->
+  <!-- 当有真实机械臂连接时,要进行修改 -->
   <node name="joint_state_publisher" pkg="joint_state_publisher" type="joint_state_publisher">
-    <param name="use_gui" value="$(arg use_gui)"/>
-    <rosparam param="source_list">[move_group/fake_controller_joint_states]</rosparam>
+    <param name="/use_gui" value="$(arg use_gui)"/>
+    <rosparam param="/source_list">[/joint_states]</rosparam >
+    <!-- 控制真实的机械臂不需要 -->
+    <!-- <rosparam param="source_list">[move_group/fake_controller_joint_states]</rosparam> -->
   </node>
 
   <!-- Given the published joint states, publish tf for the robot links -->
+  <!-- 机器人基座与世界坐标系的关系 -->
   <node name="robot_state_publisher" pkg="robot_state_publisher" type="robot_state_publisher" respawn="true" output="screen" />
 
   <!-- Run the main MoveIt! executable without trajectory execution (we do not have controllers configured by default) -->

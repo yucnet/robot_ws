@@ -72,6 +72,15 @@
     <param name="planning_scene_monitor/publish_geometry_updates" value="$(arg publish_monitored_planning_scene)" />
     <param name="planning_scene_monitor/publish_state_updates" value="$(arg publish_monitored_planning_scene)" />
     <param name="planning_scene_monitor/publish_transforms_updates" value="$(arg publish_monitored_planning_scene)" />
+  
+
+    <!-- 为了防止真实机械臂运行超时而添加的超时时间 -->
+    <!-- 允许轨迹执行时间的一个放大倍数，可以根据实际情况自行修改 -->
+    <param name="trajectory_execution/allowed_execution_duration_scaling" value="6"/>    
+    <!-- 超时的一个百分比范围   -->
+    <param name="trajectory_execution/allowed_goal_duration_margin" value="0.5"/>          
+    <!-- 或者加入下面的参数，直接关掉监视轨迹执行状况的一个monitoring
+    <param name="trajectory_execution/execution_duration_monitoring" value="false"/> -->
   </node>
 
 </launch>

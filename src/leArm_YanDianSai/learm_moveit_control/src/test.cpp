@@ -5,26 +5,28 @@
 #include <control_msgs/FollowJointTrajectoryAction.h>
 #include <trajectory_msgs/JointTrajectory.h>
 #include <geometry_msgs/Pose.h>
-
+ 
 #include <moveit/move_group_interface/move_group_interface.h>
 using namespace std;
 typedef actionlib::ActionClient<control_msgs::FollowJointTrajectoryAction> client;
 vector<string> joint_name;
-
+//cout<<"debug"<<endl;
 int main(int argc, char **argv)
 {
   ros::init(argc, argv, "moveit_test");
-  ros::AsyncSpinner spinner(1);
-  spinner.start();
+  //ros::AsyncSpinner spinner(1);
+  //spinner.start();
 
-  joint_name.push_back("joint_1");
-  joint_name.push_back("joint_2");
-  joint_name.push_back("joint_3");
-  joint_name.push_back("joint_4");
-  joint_name.push_back("joint_5");
+  joint_name.push_back("joint1");
+  joint_name.push_back("joint2");
+  joint_name.push_back("joint3");
+  joint_name.push_back("joint4");
+  joint_name.push_back("joint5");
 
-  moveit::planning_interface::MoveGroupInterface group("test_1");
+  moveit::planning_interface::MoveGroupInterface group("test1");
+
   group.setNamedTarget("Home");
+  cout<<"client prepared!"<<endl;
   
   // geometry_msgs::Pose target_pose1;
   // target_pose1.orientation.w = 0.726282;
@@ -50,12 +52,6 @@ int main(int argc, char **argv)
 
   // //goal.trajectory.header
   // goal.trajectory.joint_names = joint_name;
-
-
-
-
-
-
-  
+  ros::spin();
   return 0;
 }

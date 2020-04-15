@@ -42,7 +42,6 @@ moveitClient::moveitClient(ros::NodeHandle& node):
     goal.trajectory.header.stamp = ros::Time::now() + ros::Duration(1.0);
     this->moveit_client.sendGoal(goal); 
     ROS_INFO_STREAM("Send joint trajectory goal to server successfully!");
-
     // goal.trajectory.header.frame_id = "base_link";
     // goal.trajectory.header.stamp = ros::Time::now();
     //group.setNamedTarget("Home");
@@ -67,7 +66,5 @@ void moveitClient::doneCb(const actionlib::SimpleClientGoalState& state,
 void moveitClient::activeCb()
 {
     ROS_INFO("Goal just went active!");
-
-
 }
 
