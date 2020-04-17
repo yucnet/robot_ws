@@ -11,7 +11,7 @@ typedef actionlib::SimpleActionClient<control_msgs::FollowJointTrajectoryAction>
 
 class moveitClient{
 public:
-    int trajectory_index_ = 1;
+    int trajectory_index_ = 0;
     client moveit_client;
 
     control_msgs::FollowJointTrajectoryGoal goal;

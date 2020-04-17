@@ -7,7 +7,6 @@ moveitClient::moveitClient(ros::NodeHandle& node):
     group("test1")
 {
     ROS_INFO("planning_group_test1!!!!!!!");
-    
     group.setPoseReferenceFrame("base_link");//设定姿态的参考坐标
     group.allowReplanning(true);//允许重新规划
 

@@ -2,6 +2,7 @@
 #include <iostream>
 #include <actionlib/server/simple_action_server.h>
 #include <control_msgs/FollowJointTrajectoryAction.h>
+#include <learm_robot_msgs/GoalPoint.h>
 #include <std_msgs/Float32MultiArray.h>
  
 #include <sstream>
@@ -16,7 +17,6 @@
 #include <unistd.h>
 #include <errno.h>
 #include <pthread.h>
- 
 using namespace std;
  
 typedef actionlib::SimpleActionServer<control_msgs::FollowJointTrajectoryAction> Server;
@@ -48,6 +48,7 @@ double tp6;
 /* 收到action的goal后调用的回调函数 */
 void execute(const control_msgs::FollowJointTrajectoryGoalConstPtr& goal, Server* as)
 {
+    learm_robot_msgs::GoalPoint msg;
 	//ros::Rate rate(1);
     joint1 = goal->trajectory.joint_names[0];
     joint2 = goal->trajectory.joint_names[1];
@@ -56,6 +57,7 @@ void execute(const control_msgs::FollowJointTrajectoryGoalConstPtr& goal, Server
     joint5 = goal->trajectory.joint_names[4];
     joint6 = goal->trajectory.joint_names[5];
  
+    //关节角度
     cp1 = goal->trajectory.points[0].positions[0];
     cp2 = goal->trajectory.points[0].positions[1];
     cp3 = goal->trajectory.points[0].positions[2];
