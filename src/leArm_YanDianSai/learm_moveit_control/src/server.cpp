@@ -44,33 +44,40 @@ double tp3;
 double tp4;
 double tp5;
 double tp6;
- 
+ros::Publisher* pubptr = NULL;
 /* 收到action的goal后调用的回调函数 */
 void execute(const control_msgs::FollowJointTrajectoryGoalConstPtr& goal, Server* as)
 {
+    ROS_INFO_STREAM("begin to exec!");
     learm_robot_msgs::GoalPoint msg;
 	//ros::Rate rate(1);
+  
     joint1 = goal->trajectory.joint_names[0];
     joint2 = goal->trajectory.joint_names[1];
     joint3 = goal->trajectory.joint_names[2];
     joint4 = goal->trajectory.joint_names[3];
     joint5 = goal->trajectory.joint_names[4];
-    joint6 = goal->trajectory.joint_names[5];
- 
-    //关节角度
+   
+    //第一个waypoint的关节角度
     cp1 = goal->trajectory.points[0].positions[0];
     cp2 = goal->trajectory.points[0].positions[1];
     cp3 = goal->trajectory.points[0].positions[2];
     cp4 = goal->trajectory.points[0].positions[3];
     cp5 = goal->trajectory.points[0].positions[4];
-    cp6 = goal->trajectory.points[0].positions[5];
- 
-    tp1 = goal->trajectory.points[1].positions[0];
-    tp2 = goal->trajectory.points[1].positions[1];
-    tp3 = goal->trajectory.points[1].positions[2];
-    tp4 = goal->trajectory.points[1].positions[3];
-    tp5 = goal->trajectory.points[1].positions[4];
-    tp6 = goal->trajectory.points[1].positions[5];
+
+    msg.joint1 =  goal->trajectory.points[0].positions[0];
+    msg.joint2 =  goal->trajectory.points[0].positions[1];
+    msg.joint3 =  goal->trajectory.points[0].positions[2];
+    msg.joint4 =  goal->trajectory.points[0].positions[3];
+    msg.joint5 =  goal->trajectory.points[0].positions[4];
+  
+    // //第二个waypoint的关节角度
+    // tp1 = goal->trajectory.points[1].positions[0];
+    // tp2 = goal->trajectory.points[1].positions[1];
+    // tp3 = goal->trajectory.points[1].positions[2];
+    // tp4 = goal->trajectory.points[1].positions[3];
+    // tp5 = goal->trajectory.points[1].positions[4];
+   
  
 	// 并且按照1hz的频率发布进度feedback
 	// control_msgs::FollowJointTrajectoryFeedback feedback;
@@ -79,17 +86,28 @@ void execute(const control_msgs::FollowJointTrajectoryGoalConstPtr& goal, Server
  
     // 当action完成后，向客户端返回结果
     //printf("goal=[%f,%f,%f,%f,%f,%f]\n",tp1,tp2,tp3,tp4,tp5,tp6);
-    ROS_INFO("Recieve action successful!");
+    while (1)
+    {
+       
+        pubptr->publish(msg);
+        cout<<"发送成功!"<<endl;
+    }
+    
     as->setSucceeded();
+    ROS_INFO_STREAM("exec end!");
 }
  
 int main(int argc, char** argv)
 {
 	ros::init(argc, argv, "trajectory_server");
 	ros::NodeHandle nh;
+    cout<<"cheuhcusc"<<endl;
+    ros::Publisher pub= nh.advertise<learm_robot_msgs::GoalPoint>("learm_joint/send_arm_data",1);
+    pubptr = &pub;
 	Server server(nh, "learm_controller/follow_joint_trajectory", boost::bind(&execute, _1, &server), false);
+    cout<<"cheuhcusc"<<endl;
 	server.start();
+    cout<<"cheuhcusc"<<endl;
+    ROS_INFO_STREAM("waiting for a goal!"<<"　"<<" ...");
 	ros::spin();
- 
 }
- 

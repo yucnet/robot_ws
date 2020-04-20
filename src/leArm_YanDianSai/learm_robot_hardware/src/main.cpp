@@ -4,8 +4,7 @@
 
 int main(int argc, char **argv)
 {
-    ROS_INFO("here!!!!!");
-    ros::init(argc, argv, "xm_arm_robot_hardware");
+    ros::init(argc, argv, "learm_robot_hardware");
     ros::NodeHandle node;
     ArmRobotHardware learm_robothw(node);
 
@@ -18,9 +17,10 @@ int main(int argc, char **argv)
         return 0;
     }
 
-    ros::NodeHandle cm_nh("xm_arm");
+    ros::NodeHandle cm_nh("learm_controller_manager");
     ros::CallbackQueue cm_callback_queue;
     cm_nh.setCallbackQueue(&cm_callback_queue);
+    //传入硬件实例和一个硬件管理节点
     controller_manager::ControllerManager manager(&learm_robothw, cm_nh);
     ros::Rate rate(learm_robothw.getFreq());
     ros::AsyncSpinner hw_spinner(1, learm_robothw.getCallbackQueue());
@@ -30,6 +30,7 @@ int main(int argc, char **argv)
 
     while (ros::ok())
     {
+        ROS_INFO_STREAM("进入主循环"<<" "<<endl);
         ros::Time current_time = ros::Time::now();
         learm_robothw.read(current_time,
             ros::Duration(1 / learm_robothw.getFreq()));

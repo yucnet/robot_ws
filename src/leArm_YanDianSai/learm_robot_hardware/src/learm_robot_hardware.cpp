@@ -5,7 +5,7 @@ ArmRobotHardware::ArmRobotHardware(ros::NodeHandle nh)
 {
     nh_.setCallbackQueue(&callback_queue_);
 
-//设置关键和电机的名称
+    //设置关键和电机的名称
     jnt_name_.push_back("joint1");
     jnt_name_.push_back("joint2");
     jnt_name_.push_back("joint3");
@@ -54,6 +54,7 @@ ArmRobotHardware::ArmRobotHardware(ros::NodeHandle nh)
     arm_command_id_ = 3;//??
     arm_state_id_   = 4;
 
+    //this->joint_data_sub = nh_.subscribe("learm_joint/send_arm_data",1, ,this);
     arm_serial_pub_ = nh_.advertise<learm_robot_msgs::GoalPoint>(
         "learm_serial/send_arm_command", 1000);//发送给穿串口节点,让其发送给串口下位机
     /*
@@ -267,7 +268,6 @@ bool ArmRobotHardware::start()
             //publishArmJState(0x01, i);
             publishArmCommand(0x01, i, 0.0);
         }
-
     ROS_INFO_STREAM("Starting to read and write joint's states!");
     callback_queue_.callAvailable(ros::WallDuration(1 / freq_));
 

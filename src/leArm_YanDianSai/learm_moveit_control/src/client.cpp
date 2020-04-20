@@ -58,7 +58,7 @@ moveitClient::~moveitClient()
 void moveitClient::doneCb(const actionlib::SimpleClientGoalState& state,
         const control_msgs::FollowJointTrajectoryResultConstPtr& result)
 {
-    ROS_INFO("Goal just went active!");
+    ROS_INFO_STREAM("Task Finished!");
 
 }
 

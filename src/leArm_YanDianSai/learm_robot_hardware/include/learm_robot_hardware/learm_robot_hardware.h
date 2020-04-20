@@ -44,7 +44,7 @@ public:
         {
             return this->freq_;
         }
-private:
+public:
     void publishArmCommand(const u_int8_t func, const u_int8_t jnt_id,
                            const float jnt_pos);
     //void publishArmJState(const u_int8_t func, const u_int8_t jnt_id);
@@ -56,12 +56,14 @@ private:
     bool checkArmStatus();
     void transPositionJointToActuator();
     void transPositionActuatorToJoint();
-private:
+public:
     ros::NodeHandle    nh_;
     ros::CallbackQueue callback_queue_;
     ros::Publisher     arm_serial_pub_;
-    ros::Subscriber    arm_state_sub_;
-    ros::Subscriber    arm_status_sub_;
+    ros::Subscriber    joint_data_sub;
+
+    //ros::Subscriber    arm_state_sub_;
+    //ros::Subscriber    arm_status_sub_;
     int                arm_command_id_;
     int                arm_state_id_;
     double             freq_;//这个频率是什么意思?
