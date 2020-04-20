@@ -102,7 +102,7 @@ int main(int argc, char** argv)
 	ros::init(argc, argv, "trajectory_server");
 	ros::NodeHandle nh;
     cout<<"cheuhcusc"<<endl;
-    ros::Publisher pub= nh.advertise<learm_robot_msgs::GoalPoint>("learm_joint/send_arm_data",1);
+    ros::Publisher pub= nh.advertise<learm_robot_msgs::GoalPoint>("learm_joint/send_arm_data",100);
     pubptr = &pub;
 	Server server(nh, "learm_controller/follow_joint_trajectory", boost::bind(&execute, _1, &server), false);
     cout<<"cheuhcusc"<<endl;

@@ -1,4 +1,4 @@
-#include <xm_arm_hardware_serial_node/xm_arm_hardware_serial_node.h>
+#include <learm_hardware_serial_node/learm_hardware_serial_node.h>
 using namespace std;
 namespace xm_serial_node {
 SerialNode::SerialNode(const ros::NodeHandle &nh,

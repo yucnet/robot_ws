@@ -1,14 +1,11 @@
-#ifndef XM_ARM_HARDWARE_SERIAL_NODE_H_
-#define XM_ARM_HARDWARE_SERIAL_NODE_H_
-//SerialParams 将串口通信使用到的一系列参数封装到这个类中
 #include <ros/ros.h>
-#include "xm_arm_hardware_serial_node/xm_arm_hardware_serial_port.h"//对Serial_param的定义
+#include <learm_hardware_serial_node/learm_hardware_serial_port.h>//对Serial_param的定义
 #include <xm_arm_msgs/xm_ArmSerialDatagram.h>
 #include <map>
 #include <string>
 #include <boost/shared_ptr.hpp>
 
-namespace xm_serial_node {
+namespace learm_serial_node {
 class SerialNode
 {
 public:
@@ -35,6 +32,5 @@ private:
     map<u_int8_t, ros::Publisher> serial_pub_;
 };
 
-} // namespace xm_serial_node
+} // namespace learm_serial_node
 
-#endif // XM_ARM_HARDWARE_SERIAL_NODE_H_

@@ -1,4 +1,4 @@
-#include <xm_arm_hardware_serial_node/xm_arm_hardware_serial_port.h>
+#include <learm_hardware_serial_node/learm_hardware_serial_port.h>
 #include <boost/function.hpp>
 using namespace std;
 

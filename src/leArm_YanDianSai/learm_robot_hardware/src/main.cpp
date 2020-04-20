@@ -23,17 +23,21 @@ int main(int argc, char **argv)
     //传入硬件实例和一个硬件管理节点
     controller_manager::ControllerManager manager(&learm_robothw, cm_nh);
     ros::Rate rate(learm_robothw.getFreq());
+
+    //回调函数线程,开辟线程用来接受和处理数据
     ros::AsyncSpinner hw_spinner(1, learm_robothw.getCallbackQueue());
     ros::AsyncSpinner cm_spinner(1, &cm_callback_queue);
     hw_spinner.start();
     cm_spinner.start();
-
+    
+    //主线程按一定频率进行读写
     while (ros::ok())
     {
-        ROS_INFO_STREAM("进入主循环"<<" "<<endl);
+       
+        ROS_INFO_STREAM("enter into the main loop"<<" "<<endl);
         ros::Time current_time = ros::Time::now();
-        learm_robothw.read(current_time,
-            ros::Duration(1 / learm_robothw.getFreq()));
+        // learm_robothw.read(current_time,
+        //     ros::Duration(1 / learm_robothw.getFreq()));
         manager.update(current_time,
             ros::Duration(1 / learm_robothw.getFreq()));
         learm_robothw.write(current_time,

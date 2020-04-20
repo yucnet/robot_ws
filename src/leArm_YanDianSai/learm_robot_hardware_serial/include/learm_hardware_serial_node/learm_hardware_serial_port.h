@@ -1,7 +1,3 @@
-#ifndef XM_ARM_HARDWARE_SERIAL_PORT_H_
-#define XM_ARM_HARDWARE_SERIAL_PORT_H_
-
-#include <xm_arm_msgs/xm_ArmSerialDatagram.h>
 #include <iomanip>
 #include <vector>
 #include <queue>
@@ -114,4 +110,3 @@ private:
 
 } // namespace xm_serial_node
 
-#endif // XM_ARM_HARDWARE_SERIAL_PORT_H_

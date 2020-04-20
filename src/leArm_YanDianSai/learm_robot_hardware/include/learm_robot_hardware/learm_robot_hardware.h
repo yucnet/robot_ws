@@ -9,7 +9,7 @@
 #include <std_msgs/Float64.h>
 #include <learm_robot_msgs/GoalPoint.h>
 
-
+#include <thread>
 #include <sstream>
 #include <vector>
 #include <string>
@@ -45,17 +45,19 @@ public:
             return this->freq_;
         }
 public:
-    void publishArmCommand(const u_int8_t func, const u_int8_t jnt_id,
-                           const float jnt_pos);
+    void publishArmCommand();
     //void publishArmJState(const u_int8_t func, const u_int8_t jnt_id);
     /*void getArmStateCallback(
         const xm_arm_msgs::xm_ArmSerialDatagram::ConstPtr& msg);
     void getArmStatusCallback(
         const xm_arm_msgs::xm_ArmSerialDatagram::ConstPtr& msg);
         */
+    void getUpValueCallback(const learm_robot_msgs::GoalPoint::ConstPtr& msg);
+
     bool checkArmStatus();
     void transPositionJointToActuator();
     void transPositionActuatorToJoint();
+    
 public:
     ros::NodeHandle    nh_;
     ros::CallbackQueue callback_queue_;

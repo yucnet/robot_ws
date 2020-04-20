@@ -1,4 +1,5 @@
 #include <learm_robot_hardware/learm_robot_hardware.h>
+
 ArmRobotHardware::ArmRobotHardware(ros::NodeHandle nh)
     : nh_(nh),
       freq_(20)
@@ -21,7 +22,7 @@ ArmRobotHardware::ArmRobotHardware(ros::NodeHandle nh)
     act_name_.push_back("id_5");
     act_name_.push_back("id_6");
     act_name_.push_back("id_7");
-
+    
     //初始化,每一个关节的转角,速度,力矩等都设为0
     for (int i = 0; i < jnt_name_.size(); i++)
         {
@@ -32,10 +33,13 @@ ArmRobotHardware::ArmRobotHardware(ros::NodeHandle nh)
             act_cmd_[act_name_[i]] = 0.0;
             act_pos_[act_name_[i]] = 0.0;
 
+            //接收反馈
             hardware_interface::JointStateHandle jnt_state_handle(jnt_name_[i],
                 &jnt_pos_[jnt_name_[i]], &jnt_vel_[jnt_name_[i]],
                 &jnt_eff_[jnt_name_[i]]);
             jnt_state_interfece_.registerHandle(jnt_state_handle);
+
+            //下发命令
             hardware_interface::JointHandle jnt_position_handle(
                 jnt_state_interfece_.getHandle(jnt_name_[i]),
                 &jnt_cmd_[jnt_name_[i]]);
@@ -45,16 +49,17 @@ ArmRobotHardware::ArmRobotHardware(ros::NodeHandle nh)
     registerInterface(&jnt_state_interfece_);
     registerInterface(&jnt_position_interface_);
 
-    for (int i = 0; i < 7; i++)
+    for (int i = 0; i < 4; i++)
         {
             jnt_stamp_.push_back(ros::Time::now());
             jnt_status_.push_back(UNKNOWN);
         }
 
-    arm_command_id_ = 3;//??
-    arm_state_id_   = 4;
+    // arm_command_id_ = 3;//??
+    // arm_state_id_   = 4;
 
-    //this->joint_data_sub = nh_.subscribe("learm_joint/send_arm_data",1, ,this);
+    this->joint_data_sub = nh_.subscribe("learm_joint/send_arm_data",100,
+                                    &ArmRobotHardware::getUpValueCallback,this);
     arm_serial_pub_ = nh_.advertise<learm_robot_msgs::GoalPoint>(
         "learm_serial/send_arm_command", 1000);//发送给穿串口节点,让其发送给串口下位机
     /*
@@ -74,13 +79,14 @@ ArmRobotHardware::~ArmRobotHardware()
 void ArmRobotHardware::transPositionJointToActuator()
 {
     //关节与相应的控制电机要一一对应
-    act_cmd_["id_1"]     = jnt_cmd_["joint1"];
-    act_cmd_["id_2"]     = jnt_cmd_["joint2"];
-    act_cmd_["id_3"]     = jnt_cmd_["joint3"];
-    act_cmd_["id_4"]     = jnt_cmd_["joint4"];
-    act_cmd_["id_5"]     = jnt_cmd_["joint5"];
-    act_cmd_["id_6"]     = jnt_cmd_["joint6"];
-    act_cmd_["id_7"]     = jnt_cmd_["joint7"];
+    act_cmd_["id_1"]     = (100/9)*(jnt_cmd_["joint1"]*(180/3.1415926))+1500;
+    act_cmd_["id_2"]     = (100/9)*(jnt_cmd_["joint2"]*(180/3.1415926))+1500;
+    act_cmd_["id_3"]     = (100/9)*(jnt_cmd_["joint3"]*(180/3.1415926))+1500;
+    act_cmd_["id_4"]     = (100/9)*(jnt_cmd_["joint4"]*(180/3.1415926))+1500;
+    act_cmd_["id_5"]     = (100/9)*(jnt_cmd_["joint5"]*(180/3.1415926))+1500;
+    act_cmd_["id_6"]     = (100/9)*(jnt_cmd_["joint6"]*(180/3.1415926))+1500;
+    act_cmd_["id_7"]     = (100/9)*(jnt_cmd_["joint7"]*(180/3.1415926))+1500;
+    cout<<"电机数据转换完成!"<<endl;
 }
 
 // Because autuator's direction is not unified, the signs of positive and
@@ -92,9 +98,26 @@ void ArmRobotHardware::transPositionActuatorToJoint()
     jnt_cmd_["joint3"] =  act_cmd_["id_3"] ;
     jnt_cmd_["joint4"] =  act_cmd_["id_4"] ;
     jnt_cmd_["joint5"] =  act_cmd_["id_5"] ;
-    jnt_cmd_["joint6"] =  act_cmd_["id_6"] ;
-    jnt_cmd_["joint7"] =  act_cmd_["id_7"] ;
+    // jnt_cmd_["joint6"] =  act_cmd_["id_6"] ;
+    // jnt_cmd_["joint7"] =  act_cmd_["id_7"] ;
 }
+
+
+//接受来自moveit的关节角数据(弧度制)
+void ArmRobotHardware::getUpValueCallback(const learm_robot_msgs::GoalPoint::ConstPtr& msg)
+{
+    
+    //cout<<"回调函数调用"<<endl;
+    this->jnt_cmd_["joint1"] = msg->joint1;
+    this->jnt_cmd_["joint2"] = msg->joint2;
+    this->jnt_cmd_["joint3"] = msg->joint3;
+    this->jnt_cmd_["joint4"] = msg->joint4;
+    this->jnt_cmd_["joint5"] = msg->joint5;
+    //cout<<"数据进行更新!"<<endl;
+}
+
+
+
 
 
 /* 接受反馈
@@ -170,27 +193,19 @@ void ArmRobotHardware::publishArmJState(const u_int8_t func,
 */
 
 
-void ArmRobotHardware::publishArmCommand(const u_int8_t func,
-                                         const u_int8_t jnt_id,
-                                         const float    jnt_pos)
+void ArmRobotHardware::publishArmCommand()
 {
     learm_robot_msgs::GoalPointPtr data_ptr =
         boost::make_shared<learm_robot_msgs::GoalPoint>();
-    // datagram_ptr->sender = arm_command_id_;
-    // datagram_ptr->receiver = jnt_id + 0x2A;
-    // datagram_ptr->data.resize(5, 0);
-    // u_int8_t *data_ptr = datagram_ptr->data.data();
-    // data_ptr[0] = func;
-    // *(float *)(data_ptr + 1) = jnt_pos;
-    // arm_serial_pub_.publish(datagram_ptr);
-    data_ptr->joint1 = 1500;
-    data_ptr->joint2 = 1500;
-    data_ptr->joint3 = 1500;
-    data_ptr->joint4 = 1500;
-    data_ptr->joint5 = 1500;
-    data_ptr->joint6 = 1500;
-    data_ptr->joint7 = 1500;
+
+    data_ptr->joint1 = this->act_cmd_["id_1"];
+    data_ptr->joint2 = this->act_cmd_["id_2"];
+    data_ptr->joint3 = this->act_cmd_["id_3"];
+    data_ptr->joint4 = this->act_cmd_["id_4"];
+    data_ptr->joint5 = this->act_cmd_["id_5"];
+  
     arm_serial_pub_.publish(data_ptr);
+    cout<<"数据发给串口!"<<endl;
 }
 
 bool ArmRobotHardware::checkArmStatus()
@@ -233,25 +248,23 @@ void ArmRobotHardware::read(const ros::Time, const ros::Duration period)
 void ArmRobotHardware::write(const ros::Time, const ros::Duration period)
 {
     transPositionJointToActuator();
+    publishArmCommand();
 
-    for (size_t i = 0; i < 7; i++)
-        publishArmCommand(0x01, i, act_cmd_[act_name_[i]]);
-
-    ROS_INFO_STREAM("joint_command");
+    ROS_INFO_STREAM("joint_command"<<endl);
     ROS_INFO_STREAM(
         "joint1: " << jnt_cmd_["joint1"] <<endl<<
         "joint2: " << jnt_cmd_["joint2"] <<endl<<
         "joint3: " << jnt_cmd_["joint3"] <<endl<<
         "joint4: " << jnt_cmd_["joint4"] <<endl<<
-        "joint5: " << jnt_cmd_["joint5"] <<endl<<
-        "joint6: " << jnt_cmd_["joint6"] <<endl<<
-        "joint7: " << jnt_cmd_["joint7"] <<endl);
+        "joint5: " << jnt_cmd_["joint5"] <<endl
+       /* "joint6: " << jnt_cmd_["joint6"] <<endl<<
+        "joint7: " << jnt_cmd_["joint7"] <<endl*/);
     ROS_INFO_STREAM("------");
-
+    cout<<"callavailable"<<endl;
     callback_queue_.callAvailable(ros::WallDuration(1 / freq_ / 3));
     ros::Time current_time = ros::Time::now();
 
-    for (size_t i = 0; i < 7; i++)
+    for (size_t i = 0; i < 4; i++)
     {
         if ((current_time - jnt_stamp_[i]).toSec() > 0.5)
         {
@@ -263,11 +276,11 @@ void ArmRobotHardware::write(const ros::Time, const ros::Duration period)
 
 bool ArmRobotHardware::start()
 {
-    for (size_t i = 0; i < 7; i++)
-        {
-            //publishArmJState(0x01, i);
-            publishArmCommand(0x01, i, 0.0);
-        }
+    // for (size_t i = 0; i < 7; i++)
+    //     {
+    //         //publishArmJState(0x01, i);
+    //         publishArmCommand(0x01, i, 0.0);
+    //     }
     ROS_INFO_STREAM("Starting to read and write joint's states!");
     callback_queue_.callAvailable(ros::WallDuration(1 / freq_));
 
