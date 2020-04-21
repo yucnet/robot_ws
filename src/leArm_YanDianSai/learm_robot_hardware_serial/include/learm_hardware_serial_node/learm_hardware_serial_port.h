@@ -50,7 +50,6 @@ public:
 };
 
 typedef vector<u_int8_t> byte_vector;
-
 typedef boost::shared_ptr<byte_vector> ptr_byte_vector;
 
 //这个类是serialNode的成员类

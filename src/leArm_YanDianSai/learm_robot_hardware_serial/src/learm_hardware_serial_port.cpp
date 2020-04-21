@@ -15,6 +15,7 @@ SerialPort::~SerialPort()
     thread_.join();//等待线程结束
 }
 
+/*
 void SerialPort::startOneRead()
 {
     cout << "SerialPort::startOneRead called !!" << endl;
@@ -23,9 +24,10 @@ void SerialPort::startOneRead()
         boost::bind(&SerialPort::readHandler, this, boost::asio::placeholders::error,
         boost::asio::placeholders::bytes_transferred));
 }
-
+*/
 void SerialPort::startOneWrite()
 {
+    cout<<"startonerite"<<endl;
     mutex::scoped_lock lock(serial_mutex_);
     boost::asio::async_write(*ptr_serial_, buffer(*(write_queue_.front())),
             boost::bind(&SerialPort::writeHandler, this, boost::asio::placeholders::error));
@@ -36,7 +38,7 @@ void SerialPort::runMain()
     cout << "SerialPort runmainThread STARTED!" << endl;
     state_ = WAITING_H1;
     current_header_.resize(4, 0);
-    startOneRead();
+    //startOneRead();
     ptr_io_service_->run();//异步执行
     cout << "SerialPort mainThread EXITED!" << endl;
 }
@@ -157,10 +159,10 @@ void SerialPort::writeHandler(const system::error_code &ec)
 void SerialPort::timeoutHandler(const system::error_code &ec)
 {
     if (!ec)
-    {
-        cout << "Time Out !" << endl;
-        state_ = WAITING_H1;
-    }
+        {
+            cout << "Time Out !" << endl;
+            state_ = WAITING_H1;
+        }
 }
 
 void SerialPort::setSerialParams(const SerialParams &params)
@@ -233,6 +235,7 @@ void SerialPort::setCallbackFunc(
 bool SerialPort::writeDataGram(
     const learm_robot_msgs::GoalPoint &data)
 {
+    cout<<"write buffer"<<endl;
     uint32_t byte_sum = 20;
     const size_t param_len = 15;//电机参数
 
@@ -244,8 +247,8 @@ bool SerialPort::writeDataGram(
     buffer_to_send[4] = 0x05;//电机个数
 
     //时间,控制速度
-    buffer_to_send[5] = 0xFF;//t1
-    buffer_to_send[6] = 0xFF;//t2
+    buffer_to_send[5] = 0xd0;//t1
+    buffer_to_send[6] = 0x07;//t2
 
     // for(int8_t i=0;i<5;i++)
     //     for(int8_t j=0;j<3;j++)
@@ -253,32 +256,26 @@ bool SerialPort::writeDataGram(
     //             buffer_to_send.at(i);
     //         }
 
-    buffer_to_send[7]  = 0x01;
-    data.joint1;
-    buffer_to_send[8]  = 
-    //高八位
-    buffer_to_send[9]  = (((int)data.joint1) % 256)
+    buffer_to_send[7]  = 0x06;
+    buffer_to_send[8]  = ((int)data.joint1)%256;
+    buffer_to_send[9]  = ((int)data.joint1)/256;
 
-    buffer_to_send[10] = 0x02;
-    buffer_to_send[11]
-    buffer_to_send[12]
+    buffer_to_send[10] = 0x05;
+    buffer_to_send[11] = ((int)data.joint2)%256;
+    buffer_to_send[12] = ((int)data.joint2)/256;
 
-    buffer_to_send[13] = 0x03;
-    buffer_to_send[14]
-    buffer_to_send[15]
+    buffer_to_send[13] = 0x04;
+    buffer_to_send[14] = ((int)data.joint3)%256;
+    buffer_to_send[15] = ((int)data.joint3)/256;
 
-    buffer_to_send[16] = 0x04;
-    buffer_to_send[17]
-    buffer_to_send[18]
+    buffer_to_send[16] = 0x03;
+    buffer_to_send[17] = ((int)data.joint4)%256;
+    buffer_to_send[18] = ((int)data.joint4)/256;
 
-    buffer_to_send[19] = 0x05;
-    buffer_to_send[20]
-    buffer_to_send[21]
+    buffer_to_send[19] = 0x02;
+    buffer_to_send[20] = ((int)data.joint5)%256;
+    buffer_to_send[21] = ((int)data.joint5)/256;
        
-
-
-
-
     //把接收到的msg中的数据写到buffer中
     /*
     for (size_t i = 0; i < param_len; i++)
@@ -300,12 +297,13 @@ bool SerialPort::writeDataGram(
 
 bool SerialPort::writeRaw(const byte_vector &raw_data)
 {
+    cout<<"write Raw"<<endl;
     mutex::scoped_lock lock(write_queue_mutex_);
     bool empty = write_queue_.empty();//判断队列是否为空
     ptr_byte_vector data(new byte_vector(raw_data));
     write_queue_.push(data);
 
-    if (empty)
+   // if (empty)
         startOneWrite();
     return true;
 }
