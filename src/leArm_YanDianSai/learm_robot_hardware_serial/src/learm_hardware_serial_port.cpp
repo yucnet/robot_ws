@@ -2,7 +2,7 @@
 #include <boost/function.hpp>
 using namespace std;
 
-namespace xm_serial_node {
+namespace learm_serial_node {
  
 SerialPort::SerialPort()
 {
@@ -12,7 +12,7 @@ SerialPort::SerialPort()
 SerialPort::~SerialPort()
 {
     ptr_io_service_->stop();
-    thread_.join();
+    thread_.join();//等待线程结束
 }
 
 void SerialPort::startOneRead()
@@ -33,7 +33,7 @@ void SerialPort::startOneWrite()
 
 void SerialPort::runMain()
 {
-    cout << "SerialPort mainThread STARTED!" << endl;
+    cout << "SerialPort runmainThread STARTED!" << endl;
     state_ = WAITING_H1;
     current_header_.resize(4, 0);
     startOneRead();
@@ -41,6 +41,7 @@ void SerialPort::runMain()
     cout << "SerialPort mainThread EXITED!" << endl;
 }
 
+/*
 void SerialPort::readHandler(const system::error_code &ec, size_t bytes_trans)
 {
     //ec:函数调用产生错误抛出的异常,bytes_trans:数据大小(字节)
@@ -132,16 +133,19 @@ void SerialPort::readHandler(const system::error_code &ec, size_t bytes_trans)
     }
     startOneRead();
 }
-
+*/
 void SerialPort::writeHandler(const system::error_code &ec)
 {
     if (ec)
     {
         cout << "Serial write error!" << endl;
-        return ;
+        return;
     }
     else
     {
+        //将已经写入的数据弹出,并检测队列是否为空,若为空则退出函数,等待上层回调
+        //不为空则继续异步写入
+        cout<<" write successfully!"<<endl;
         mutex::scoped_lock lock(write_queue_mutex_);
         write_queue_.pop();
 
@@ -201,7 +205,7 @@ bool SerialPort::startThread()
 
     try
     {
-        //线程执行runmain()函数的调用
+        //新线程执行runmain()函数的调用
         thread_ = boost::thread(bind(&SerialPort::runMain, this));
     }
     catch (std::exception &e)
@@ -221,33 +225,65 @@ bool SerialPort::stopThread()
 }
 
 void SerialPort::setCallbackFunc(
-    const boost::function<void(xm_arm_msgs::xm_ArmSerialDatagramPtr)> &func)
+    const boost::function<void(learm_robot_msgs::GoalPointPtr)> &func)
 {
     data_callback_func_ = func;
 }
 
 bool SerialPort::writeDataGram(
-    const xm_arm_msgs::xm_ArmSerialDatagram &datagram)
+    const learm_robot_msgs::GoalPoint &data)
 {
-    uint32_t byte_sum = 0;
-    const size_t param_len = datagram.data.size();//传输字长
-
+    uint32_t byte_sum = 20;
+    const size_t param_len = 15;//电机参数
 
     //数据buffer
     byte_vector buffer_to_send(HEADER_LEN + param_len + 5, 0);//都为零
     buffer_to_send[0] = buffer_to_send[1] = 0x55;//数据协议头,若下位机收到两个0x55则开始接收数据
-    buffer_to_send[2] = 0;//数据长度N
-    buffer_to_send[3] = 0x03;//指令名 CMD_MULT_SERVO_MOVE
-    buffer_to_send[4] = 0x06;//电机个数
-    buffer_to_send[5] = 0xFF;//时间,控制速度
-    buffer_to_send[6] = 0xFF;
+    buffer_to_send[2] = 20;//数据长度N
+    buffer_to_send[3] = 0x03;//指令名 CMD_MULT_SERVO_MOVE 不用变
+    buffer_to_send[4] = 0x05;//电机个数
+
+    //时间,控制速度
+    buffer_to_send[5] = 0xFF;//t1
+    buffer_to_send[6] = 0xFF;//t2
+
+    // for(int8_t i=0;i<5;i++)
+    //     for(int8_t j=0;j<3;j++)
+    //         {
+    //             buffer_to_send.at(i);
+    //         }
+
+    buffer_to_send[7]  = 0x01;
+    data.joint1;
+    buffer_to_send[8]  = 
+    //高八位
+    buffer_to_send[9]  = (((int)data.joint1) % 256)
+
+    buffer_to_send[10] = 0x02;
+    buffer_to_send[11]
+    buffer_to_send[12]
+
+    buffer_to_send[13] = 0x03;
+    buffer_to_send[14]
+    buffer_to_send[15]
+
+    buffer_to_send[16] = 0x04;
+    buffer_to_send[17]
+    buffer_to_send[18]
+
+    buffer_to_send[19] = 0x05;
+    buffer_to_send[20]
+    buffer_to_send[21]
+       
+
+
 
 
     //把接收到的msg中的数据写到buffer中
+    /*
     for (size_t i = 0; i < param_len; i++)
         buffer_to_send[6 + i] = datagram.data.at(i);
 
-    //
     for (size_t i = 2; i < buffer_to_send.size() - 1; i++)
         byte_sum += buffer_to_send.at(i);
 
@@ -258,19 +294,19 @@ bool SerialPort::writeDataGram(
         printf("%02X ", buffer_to_send.at(i));
 
     cout << endl;
+    */
     return writeRaw(buffer_to_send);
 }
 
 bool SerialPort::writeRaw(const byte_vector &raw_data)
 {
     mutex::scoped_lock lock(write_queue_mutex_);
-    bool empty = write_queue_.empty();
+    bool empty = write_queue_.empty();//判断队列是否为空
     ptr_byte_vector data(new byte_vector(raw_data));
     write_queue_.push(data);
 
     if (empty)
         startOneWrite();
-
     return true;
 }
 

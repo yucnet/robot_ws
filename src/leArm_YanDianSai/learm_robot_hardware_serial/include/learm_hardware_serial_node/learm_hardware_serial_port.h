@@ -1,4 +1,5 @@
-#include <iomanip>
+//#include <iomanip>
+#include <learm_robot_msgs/GoalPoint.h>
 #include <vector>
 #include <queue>
 #include <stdio.h>
@@ -12,7 +13,7 @@ using namespace std;
 using namespace boost;
 using namespace boost::asio;
 
-namespace xm_serial_node {
+namespace learm_serial_node {
 class SerialParams
 {
 public:
@@ -69,9 +70,9 @@ public:
     bool stopThread();
     //绑定回调函数????
     void setCallbackFunc(
-        const boost::function<void(xm_arm_msgs::xm_ArmSerialDatagramPtr)> &func);
+        const boost::function<void(learm_robot_msgs::GoalPointPtr)> &func);
     //订阅数据,写到buffer
-    bool writeDataGram(const xm_arm_msgs::xm_ArmSerialDatagram &datagram);
+    bool writeDataGram(const learm_robot_msgs::GoalPoint &datagram);
     bool writeRaw(const byte_vector &raw_data);
 private:
     void runMain();
@@ -103,8 +104,8 @@ private:
     size_t                 data_bytes_read_;//数据的个数
     queue<ptr_byte_vector> write_queue_;//写入数据的队列
     boost::mutex           write_queue_mutex_;//写入数据线程锁.
-    boost::thread          thread_;
-    boost::function<void(xm_arm_msgs::xm_ArmSerialDatagramPtr)> data_callback_func_;//返回值为空的函数对象
+    boost::thread          thread_;//开辟新线程
+    boost::function<void(learm_robot_msgs::GoalPointPtr)> data_callback_func_;//返回值为空的函数对象
     boost::function<void()>                                     error_callback_func_;//返回值和参数都为空的函数对象
 };
 
