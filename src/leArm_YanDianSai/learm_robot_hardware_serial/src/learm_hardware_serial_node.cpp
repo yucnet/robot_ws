@@ -29,7 +29,7 @@ SerialNode::~SerialNode()
 void SerialNode::loadParams()
 {
     //给参数类赋值
-    serial_params_.serial_port_  = "/dev/ttyUSB1";//串口号
+    serial_params_.serial_port_  = "/dev/ttyUSB0";//串口号
     serial_params_.baud_rate_    = 9600;
     serial_params_.flow_control_ = 0;
     serial_params_.parity_bits_  = 0;
