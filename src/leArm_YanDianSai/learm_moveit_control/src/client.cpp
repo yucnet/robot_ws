@@ -47,6 +47,19 @@ moveitClient::moveitClient(ros::NodeHandle& node):
     
 }
 
+void moveitClient::CartesianPath()
+{
+     std::vector<geometry_msgs::Pose> wayPoints;
+     //wayPoints.push_back();
+
+
+
+
+
+
+
+}
+
 actionlib::SimpleClientGoalState moveitClient::getTrajectoryState()
 {
     return moveit_client.getState();

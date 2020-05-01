@@ -35,4 +35,5 @@ public:
     void feedbackCb(const control_msgs::FollowJointTrajectoryFeedbackConstPtr& feedback);
     void doneCb(const actionlib::SimpleClientGoalState& state,
         const control_msgs::FollowJointTrajectoryResultConstPtr& result);
+    void CartesianPath();
 };
