@@ -32,7 +32,7 @@
     <rosparam param="/source_list">[/joint_states]</rosparam >
     <!-- 控制真实的机械臂不需要 -->
     <!-- <rosparam param="source_list">[move_group/fake_controller_joint_states]</rosparam> -->
-  </node>
+  </node> 
 
   <!-- Given the published joint states, publish tf for the robot links -->
   <!-- 机器人基座与世界坐标系的关系 -->
