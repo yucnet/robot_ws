@@ -1,6 +1,5 @@
 #include <client/client.h>
 using namespace std;
-
 moveitClient::moveitClient(ros::NodeHandle& node):
     node(node),
     moveit_client(node,"learm_controller/follow_joint_trajectory"),
