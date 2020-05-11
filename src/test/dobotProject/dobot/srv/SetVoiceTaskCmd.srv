@@ -1,0 +1,5 @@
+int8 voiceOrder1
+int8 voiceOrder2
+int8 voiceOrder3
+---
+bool result

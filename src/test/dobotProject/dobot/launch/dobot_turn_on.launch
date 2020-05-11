@@ -1,0 +1,6 @@
+<launch>
+    <node pkg="dobot" type="JointState" name="Dobot_joint_states_publisher" /> 
+    <!-- <node pkg="dobot" type="DobotClient_PTP " name="DobotClient" />  -->
+    <node pkg="magician_moveit_control" type="server" name="trajectory_server" />
+    <include file="$(find magician_moveit_config)/launch/demo.launch" />
+</launch>
