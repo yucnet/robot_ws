@@ -154,9 +154,7 @@ include_directories(
 ## as an example, code may need to be generated before libraries
 ## either from message generation or dynamic reconfigure
 add_executable(vision 
-                src/vision_.cpp
-                include/sorting/sorting.h
-                src/sorting.cpp
+               src/main.cpp
               )
 target_link_libraries(vision ${catkin_LIBRARIES} ${OpenCV_LIBRARIES})
 add_dependencies(vision ${projectname}_generate_message_cpp})

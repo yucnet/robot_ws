@@ -15,6 +15,7 @@
 /********************OPENCVLIBRARY********************************/
 #include <opencv2/highgui/highgui.hpp>
 #include <opencv2/imgproc/imgproc.hpp>
+#include <opencv2/calib3d/calib3d.hpp>
 #include <opencv2/core/core.hpp>
 #include <opencv2/aruco.hpp>
 #include <opencv2/aruco/dictionary.hpp>
@@ -36,11 +37,13 @@ public:
         image_transport::ImageTransport it_(m_node);
         //client_pose = m_node.serviceClient<dobot::GetPose>("dobot/GetPose");
         m_image_sub = it_.subscribe("/camera/color/image_raw",100,&Handeye::callbackImage,this);
+        m_depth_image_sub = it_.subscribe("/camera/aligned_depth_to_color/image_raw",100,&Handeye::alignDepthcallbackImage,this);
     }
 
     void process();
-    void cameraAxisCalculation();
+    void cameraAxisCalculation(double Zc);
     void callbackImage(const sensor_msgs::ImageConstPtr& msg);
+    void Handeye::alignDepthcallbackImage(const sensor_msgs::ImageConstPtr& msg);
     void loadCalibrationFiles(string& input_path, cv::Mat& camera_matrix, cv::Mat& distcoeffs, double scale);
     void getMarker(cv::Mat& marker_image, vector<cv::Point2f>& marker_center);
     void getMarkerCoordinate(vector < vector<cv::Point2f> >& corners, vector<int>& ids, vector<cv::Point2f>& marker_center);
@@ -67,12 +70,15 @@ public:
 
     ros::ServiceClient client_pose;
     image_transport::Subscriber m_image_sub;
+    image_transport::Subscriber m_depth_image_sub;
 
     cv::Mat picture;
     vector<int> hsv_red = {0, 0, 10, 50, 255, 55, 255};
-    vector< vector< cv::Point2f > > contours;
+    vector< vector< cv::Point > > contours;
     vector< cv::Vec4i > hierarcy;
-    vector< cv::Point2f > points;
+    vector< cv::Point2f > points;//像素坐标
+    vector< cv::Point3d > camera_points;
+    vector< cv::Point3d > base_points;//机器人坐标系
 };
 
 int main(int argc, char** argv)
@@ -88,23 +94,27 @@ int main(int argc, char** argv)
         ros::spinOnce();
         loop_rate.sleep();
     }
-
 }
 
 void Handeye::process()
 {
-  cv::Mat drawmap = this->picture; //画布
+
+  cv::Mat drawmap = this->picture; 
   cv::Mat clone = picture.clone(); 
   
   cv::cvtColor(clone,clone,CV_BGR2HSV);
   cv::inRange(clone,cv::Scalar( this->hsv_red[1], this->hsv_red[3], this->hsv_red[5] ),
                  cv::Scalar( this->hsv_red[2], this->hsv_red[4], this->hsv_red[6]),clone );
+                
   cv::Mat binary = clone.clone();
   cv::medianBlur(binary,binary,25);
-  
+  cout<<"debug"<<endl;
   cv::findContours(clone, this->contours, this->hierarcy,CV_RETR_EXTERNAL, CV_CHAIN_APPROX_NONE);
-  if( this->contours.size() == 0 )
-    return;
+  cout<<"debug"<<endl;
+  if( this->contours.size() == 0 ){
+      return;
+  }
+    
   cout<< "we detected " << this->contours.size() << "contour(s)" <<endl;
   vector<cv::Rect> rect;
   for(int i = 0;i <this->contours.size(); i++){
@@ -119,6 +129,7 @@ void Handeye::process()
     this->points.push_back(center);
     //center_point_pub_.publish(msgs);
   }
+  
   cv::imshow("Min Rec",drawmap);
   cv::imshow("bin",binary);
 }
@@ -157,6 +168,22 @@ void Handeye::callbackImage(const sensor_msgs::ImageConstPtr& msg)
     cv::waitKey(1); 
 }
 
+void Handeye::alignDepthcallbackImage(const sensor_msgs::ImageConstPtr& msg)
+{
+    cout<<msg->header.frame_id<<endl;
+    cv_bridge::CvImagePtr cv_ptr;
+    try
+    {
+        cv_ptr = cv_bridge::toCvCopy(msg, sensor_msgs::image_encodings::BGR8);
+    }
+    catch (cv_bridge::Exception& e)
+    {
+        ROS_ERROR("cv_bridge exception: %s", e.what());
+        return;
+    }
+    cout<<"深度值: "<<cv_ptr->image.at<uchar>(0,0);
+}
+
 void Handeye::getMarker(cv::Mat& marker_image, vector<cv::Point2f>& marker_center)
     {
         vector<int> ids;
@@ -192,6 +219,8 @@ void Handeye::getMarker(cv::Mat& marker_image, vector<cv::Point2f>& marker_cente
             ROS_ERROR("check your camera device!");
             return;
         }
+        cout<<"out"<<endl;
+
     }
 
 void Handeye::getMarkerCoordinate(vector < vector<cv::Point2f> >& corners, vector<int>& ids, vector<cv::Point2f>& marker_center)
@@ -213,9 +242,9 @@ void Handeye::sendMarkerTf(vector<cv::Vec3d>& marker_rotate_vecs,vector<cv::Vec3
             cout<<"haven't received any vecs yet"<<endl;
 
     }else{
-            //储存旋转矩阵
             cv::Mat rotated_matrix(3, 3, CV_64FC1);
-            //旋转向量转换为旋转矩阵
+
+        
             cv::Rodrigues(marker_rotate_vecs[0],rotated_matrix);
             rotated_matrix.convertTo(rotated_matrix, CV_64FC1);
 
@@ -270,3 +299,13 @@ void Handeye::publishWorld2BaseTF()
     this->world_to_base_tf_broadcaster.sendTransform(tf::StampedTransform(transform_, ros::Time::now(),"world","magician_base"));
 }
 
+void Handeye::cameraAxisCalculation(double Zc)
+{
+    //相机内参矩阵的逆矩阵
+    Eigen::Matrix<double,3,3> camera_matix;
+    camera_matix <<  921.386962890625,             0.0, 629.8939819335938,  
+                                  0.0, 918.67041015625, 361.6900634765625, 
+                                  0.0,             0.0,               1.0;
+    camera_matix = camera_matix.inverse();
+
+}
