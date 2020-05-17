@@ -153,7 +153,7 @@ include_directories(
 ## Add cmake target dependencies of the library
 ## as an example, code may need to be generated before libraries
 ## either from message generation or dynamic reconfigure
-add_executable(handeye src/handeyeCalibration.cpp)
+add_executable(handeye src/vision.cpp)
 target_link_libraries(handeye ${catkin_LIBRARIES} ${OpenCV_LIBRARIES})
 add_dependencies(handeye ${projectname}_generate_message_cpp})
 
