@@ -20,7 +20,7 @@ public:
     sorting(ros::NodeHandle& node_);
 
     void callback(const sensor_msgs::ImageConstPtr& msg);
-    void process();
+    void process( vector< int >* ptr );
 
 
 public:
@@ -29,12 +29,14 @@ public:
     // vector<int> hsvblue   ={0, 100,124, 50,255, 55,255};
     // vector<int> hsvgreen  ={0, 45,77,   50,255, 55,255};
     // vector<int> hsvpurple ={0, 125,155, 50,255, 55,255};
-    vector < vector<cv::Point2f> > points;
+    vector < cv::Point2f > points;
     ros::NodeHandle node;
     image_transport::ImageTransport it_;
     image_transport::Subscriber image_sub_;
-    //image_transport::Publisher image_pub_;
-    //ros::Publisher center_point_pub_;
+
+    cv::Mat picture;
+    vector< vector< cv::Point > >  contours;
+    vector< cv::Vec4i > hierarcy;
 };
 
 #endif

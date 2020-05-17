@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 2.8.3)
 project(axis_tf)
 
 ## Compile as C++11, supported in ROS Kinetic and newer
-# add_compile_options(-std=c++11)
+add_compile_options(-std=c++11)
 
 ## Find catkin macros and libraries
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
@@ -140,7 +140,7 @@ catkin_package(
 ## Specify additional locations of header files
 ## Your package locations should be listed before other locations
 include_directories(
-# include
+  include
   ${catkin_INCLUDE_DIRS}
 )
 
@@ -153,9 +153,13 @@ include_directories(
 ## Add cmake target dependencies of the library
 ## as an example, code may need to be generated before libraries
 ## either from message generation or dynamic reconfigure
-add_executable(handeye src/vision.cpp)
-target_link_libraries(handeye ${catkin_LIBRARIES} ${OpenCV_LIBRARIES})
-add_dependencies(handeye ${projectname}_generate_message_cpp})
+add_executable(vision 
+                src/vision_.cpp
+                include/sorting/sorting.h
+                src/sorting.cpp
+              )
+target_link_libraries(vision ${catkin_LIBRARIES} ${OpenCV_LIBRARIES})
+add_dependencies(vision ${projectname}_generate_message_cpp})
 
 # add_executable(getPoint src/getPoint.cpp)
 # target_link_libraries(getPoint ${catkin_LIBRARIES} ${OpenCV_LIBRARIES})

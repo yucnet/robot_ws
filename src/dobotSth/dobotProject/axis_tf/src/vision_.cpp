@@ -1,10 +1,11 @@
+/**********************ROS****************************************/
 #include <ros/ros.h>
 #include <geometry_msgs/PointStamped.h>
 #include <sensor_msgs/image_encodings.h>
 #include <image_transport/image_transport.h>
 #include <tf/transform_broadcaster.h>
 #include <tf/transform_listener.h>
-//#include <tf/transform_datatypes.h>
+#include <tf/transform_datatypes.h>
 #include <tf_conversions/tf_eigen.h>
 /*********************EUGEN***************************************/
 #include <eigen3/Eigen/Core>
@@ -12,7 +13,6 @@
 #include <eigen3/Eigen/Geometry>
 #include <cmath>
 /********************OPENCVLIBRARY********************************/
-#include <opencv2/opencv.hpp>
 #include <opencv2/highgui/highgui.hpp>
 #include <opencv2/imgproc/imgproc.hpp>
 #include <opencv2/core/core.hpp>
@@ -21,7 +21,6 @@
 #include <opencv2/core/eigen.hpp>
 #include <cv_bridge/cv_bridge.h>
 #include <iostream>
-/*******************PACKAGE_HEADER*******************************/
 
 using namespace std;
 class Handeye
@@ -29,9 +28,7 @@ class Handeye
 public:
     Handeye(ros::NodeHandle& node):
     m_node(node)
-
     {
-
         this->camera_matrix = (cv::Mat_<double>(3,3) <<   921.386962890625,             0.0, 629.8939819335938,  
                                                                        0.0, 918.67041015625, 361.6900634765625, 
                                                                        0.0,             0.0,               1.0);
@@ -41,6 +38,7 @@ public:
         m_image_sub = it_.subscribe("/camera/color/image_raw",100,&Handeye::callbackImage,this);
     }
 
+    void process();
     void cameraAxisCalculation();
     void callbackImage(const sensor_msgs::ImageConstPtr& msg);
     void loadCalibrationFiles(string& input_path, cv::Mat& camera_matrix, cv::Mat& distcoeffs, double scale);
@@ -49,14 +47,13 @@ public:
     void sendMarkerTf(vector<cv::Vec3d>& marker_vecs, vector<cv::Vec3d>& marker_rotate_vecs);
     void publishTarget2BaseTF();
     void publishWorld2BaseTF();
-    // void sendDobotEffectorTF();
     void searchTF();
 
-
 public:
+   
     ros::NodeHandle m_node;
     
-    vector<cv::Point2f> marker_center;
+    vector< cv::Point2f > marker_center;
     cv::Ptr<cv::aruco::Dictionary> dictionary;
 
     cv::Mat camera_matrix;
@@ -70,6 +67,12 @@ public:
 
     ros::ServiceClient client_pose;
     image_transport::Subscriber m_image_sub;
+
+    cv::Mat picture;
+    vector<int> hsv_red = {0, 0, 10, 50, 255, 55, 255};
+    vector< vector< cv::Point2f > > contours;
+    vector< cv::Vec4i > hierarcy;
+    vector< cv::Point2f > points;
 };
 
 int main(int argc, char** argv)
@@ -85,7 +88,41 @@ int main(int argc, char** argv)
         ros::spinOnce();
         loop_rate.sleep();
     }
+
 }
+
+void Handeye::process()
+{
+  cv::Mat drawmap = this->picture; //画布
+  cv::Mat clone = picture.clone(); 
+  
+  cv::cvtColor(clone,clone,CV_BGR2HSV);
+  cv::inRange(clone,cv::Scalar( this->hsv_red[1], this->hsv_red[3], this->hsv_red[5] ),
+                 cv::Scalar( this->hsv_red[2], this->hsv_red[4], this->hsv_red[6]),clone );
+  cv::Mat binary = clone.clone();
+  cv::medianBlur(binary,binary,25);
+  
+  cv::findContours(clone, this->contours, this->hierarcy,CV_RETR_EXTERNAL, CV_CHAIN_APPROX_NONE);
+  if( this->contours.size() == 0 )
+    return;
+  cout<< "we detected " << this->contours.size() << "contour(s)" <<endl;
+  vector<cv::Rect> rect;
+  for(int i = 0;i <this->contours.size(); i++){
+
+    rect.push_back(cv::boundingRect(this->contours[i]));
+
+    if(rect[i].area()>1500){
+        cv::rectangle(drawmap, rect[i],cv::Scalar(0,0,255),3);
+    }
+
+    cv::Point2f center(0.5*(rect[i].tl().x+rect[i].br().x), 0.5*(rect[i].tl().y+rect[i].br().y));
+    this->points.push_back(center);
+    //center_point_pub_.publish(msgs);
+  }
+  cv::imshow("Min Rec",drawmap);
+  cv::imshow("bin",binary);
+}
+
 void Handeye::searchTF()
 {
     tf::StampedTransform transform;
@@ -112,8 +149,10 @@ void Handeye::callbackImage(const sensor_msgs::ImageConstPtr& msg)
         ROS_ERROR("cv_bridge exception: %s", e.what());
         return;
     }
+    this->picture = cv_ptr->image.clone();
     cv::Mat paper = cv_ptr->image.clone();
     getMarker(paper,this->marker_center);
+    this->process();
     cv::imshow("callbackImage",paper);
     cv::waitKey(1); 
 }
@@ -230,3 +269,4 @@ void Handeye::publishWorld2BaseTF()
     transform_.setOrigin( tf::Vector3( 0.0000, 0.0000, -0.127424) );
     this->world_to_base_tf_broadcaster.sendTransform(tf::StampedTransform(transform_, ros::Time::now(),"world","magician_base"));
 }
+
