@@ -22,6 +22,7 @@
 #include <cv_bridge/cv_bridge.h>
 #include <iostream>
 
+
 using namespace std;
 class Handeye
 {
@@ -29,6 +30,7 @@ public:
     Handeye(ros::NodeHandle& node):
     m_node(node)
     {
+        geometry_msgs::PointStamped point;
 
         this->camera_matrix = (cv::Mat_<double>(3,3) <<   921.386962890625,             0.0, 629.8939819335938,  
                                                                        0.0, 918.67041015625, 361.6900634765625, 
