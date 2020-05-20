@@ -1,7 +1,10 @@
 #include <ros/ros.h>
 #include <geometry_msgs/PointStamped.h>
+#include <geometry_msgs/PoseStamped.h>
 #include <sensor_msgs/image_encodings.h>
+
 #include <image_transport/image_transport.h>
+
 #include <tf/transform_broadcaster.h>
 #include <tf/transform_listener.h>
 #include <tf/transform_datatypes.h>
@@ -22,6 +25,39 @@
 #include <cv_bridge/cv_bridge.h>
 #include <iostream>
 
+#include <dobot/SetEndEffectorSuctionCup.h>
+#include <dobot/GetHOMEParams.h>
+#include <dobot/SetHOMECmd.h>
+#include <dobot/GetPose.h>
+
+class dobotTask
+{
+    public:
+    dobotTask( string name, ros::NodeHandle& node ):m_name(name), node(node){
+
+        this->m_home_client = node.serviceClient<dobot::SetHOMECmd>("/DobotServer/SetHOMECmd");
+        this->m_get_pose = node.serviceClient<dobot::GetPose>("/DobotServer/GetPose");
+        this->m_home_client = node.serviceClient<dobot::SetHOMECmd>("/DobotServer/SetHOMECmd");
+        this->m_home_client = node.serviceClient<dobot::SetEndEffectorSuctionCup>("/DobotServer/SetEndEffectorSuctionCup");
+
+    }
+
+    void endEffectorDo();
+    void goHome();
+    void returnPose();
+    void goToPoint();
+
+    public:
+
+    string m_name;
+
+    ros::NodeHandle node;
+    ros::ServiceClient m_get_pose;
+    ros::ServiceClient m_home_client;
+    ros::ServiceClient m_PTP_client;
+    ros::ServiceClient m_suction_client;
+
+};
 
 using namespace std;
 class Handeye
@@ -48,6 +84,7 @@ public:
         m_image_sub = it_.subscribe("/camera/color/image_raw",100,&Handeye::callbackImage,this);
         m_depth_image_sub = it_.subscribe("/camera/aligned_depth_to_color/image_raw",100,&Handeye::alignDepthcallbackImage,this);
 
+        this->camera_stamped_points_msgs.header.frame_id = "camera_color_optical_frame";
         this->camera_stamped_points_msgs.header.frame_id = "camera_color_optical_frame";
     }
 
@@ -100,6 +137,7 @@ public:
     //vector< vector <cv::Point2f > > marker_corners
 
     geometry_msgs::PointStamped camera_stamped_points_msgs;
+    geometry_msgs::PoseStamped  camera_stamped_pose;
 };
 
 int main(int argc, char** argv)
@@ -167,6 +205,7 @@ void Handeye::searchTF()
 
 void Handeye::callbackImage(const sensor_msgs::ImageConstPtr& msg)
 {
+    cout<<endl<<endl<<"回调"<<"----------"<<endl;
     cout << msg->header.frame_id << endl;
 
     cv_bridge::CvImagePtr cv_ptr;
@@ -185,13 +224,14 @@ void Handeye::callbackImage(const sensor_msgs::ImageConstPtr& msg)
     cv::Mat& paper = this->picture;
     getMarker(paper,this->marker_center);
     this->process();
-    cv::imshow("callbackImage",paper);
+    //cv::imshow("callbackImage",paper);
     cv::waitKey(1); 
+    cout<<"----------"<<endl;
 }
 
 void Handeye::alignDepthcallbackImage(const sensor_msgs::ImageConstPtr& msg)
 {
-
+    cout<<endl<<endl<<"align回调"<<"----------"<<endl;;
     cout<<" Align_depth_frame: " << msg->header.frame_id << endl;
 
     cv_bridge::CvImagePtr cv_ptr;
@@ -207,8 +247,10 @@ void Handeye::alignDepthcallbackImage(const sensor_msgs::ImageConstPtr& msg)
     }
 
     this->depth_align_picture = cv_ptr->image;
+    cv::medianBlur(this->depth_align_picture, this->depth_align_picture, 3);
     this->cameraAxisCalculation();
-    //cv::imshow("align", cv_ptr->image);
+    cv::imshow("align", cv_ptr->image);
+    cout<<"----------"<<endl<<endl;
 
 }
 
@@ -380,7 +422,8 @@ void Handeye::cameraAxisCalculation()
 
             if ( this->depth_align_picture.empty() == false) {
 
-                Zc = this->depth_align_picture.at<unsigned short>( marker_corners[0][i].x, marker_corners[0][i].y );
+                Zc = this->depth_align_picture.at<unsigned short>( marker_corners[0][i].y, marker_corners[0][i].x );
+                cout<<"第"<<i<<"个角点的深度值是"<<Zc<<endl;
                 Zc /= 1000;
 
             } else {
@@ -390,16 +433,35 @@ void Handeye::cameraAxisCalculation()
 
             }
 
-            float Xcam = marker_corners[0][i].x*Zc*camera_matix_inverse(0,0) - Zc*(camera_matix_inverse(0,2));
-            float Ycam = marker_corners[0][i].y*Zc*camera_matix_inverse(1,1) - Zc*(camera_matix_inverse(1,2));
+            // float Xcam = marker_corners[0][i].x*Zc*camera_matix_inverse(0,0) - Zc*(camera_matix_inverse(0,2));
+            // float Ycam = marker_corners[0][i].y*Zc*camera_matix_inverse(1,1) - Zc*(camera_matix_inverse(1,2));
+            double Xcam = ( marker_corners[0][i].x - this->camera_matrix.at<double>(0,2) )*Zc*( 1/this->camera_matrix.at<double>(0,0) );
+            double Ycam = ( marker_corners[0][i].y - this->camera_matrix.at<double>(1,2) )*Zc*( 1/this->camera_matrix.at<double>(1,1) );
             float Zcam = Zc;
+
+            camera_stamped_pose.pose.position.x = Xcam;
+            camera_stamped_pose.pose.position.y = Ycam;
+            camera_stamped_pose.pose.position.z = Zc;
 
             camera_stamped_points_msgs.point.x = Xcam;
             camera_stamped_points_msgs.point.y = Ycam;
-            camera_stamped_points_msgs.point.z = Zcam;
+            camera_stamped_points_msgs.point.z = Zc;
             camera_stamped_points_msgs.header.stamp = ros::Time::now();
             this->m_point_stamped_publisher.publish(camera_stamped_points_msgs);
-        }
 
+
+        }
+    }
+}
+
+void dobotTask::goHome()
+{
+    dobot::SetHOMECmd srv;
+    this->m_home_client.call(srv);
+
+    if( srv.response.result == 0 ){
+        cout<<"回零完成!"<<endl;
+    } else {
+        cout<<"回零出错!"<<endl;        
     }
 }
