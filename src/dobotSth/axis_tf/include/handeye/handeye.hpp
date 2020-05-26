@@ -38,7 +38,7 @@ public:
     Handeye(ros::NodeHandle& node):
     m_node(node), dobotTask(node)
     {   
-        geometry_msgs::PointStamped point;
+        
 
         this->camera_matrix = (cv::Mat_<double>(3,3) <<   921.386962890625,             0.0, 629.8939819335938,  
                                                                        0.0, 918.67041015625, 361.6900634765625, 
@@ -51,18 +51,19 @@ public:
         this->camera_matix_inverse = camera_matix.inverse();
         
         image_transport::ImageTransport it_(m_node);
+
         m_point_stamped_publisher = this->m_node.advertise<geometry_msgs::PointStamped>("marker_corners",100);
-        //client_pose = m_node.serviceClient<dobot::GetPose>("dobot/GetPose");
+
         m_image_sub = it_.subscribe("/camera/color/image_raw",100,&Handeye::callbackImage,this);
         m_depth_image_sub = it_.subscribe("/camera/aligned_depth_to_color/image_raw",100,&Handeye::alignDepthcallbackImage,this);
 
+        //geometry_msgs::PointStamped point;
         this->camera_stamped_points_msgs.header.frame_id = "camera_color_optical_frame";
     }
 
     void process(vector <int> hsv_, string color);
     void cameraAxisCalculation(string color);
     void compute(string color);
-
 
 
     void callbackImage(const sensor_msgs::ImageConstPtr& msg);
@@ -78,6 +79,11 @@ public:
 public:
    
     ros::NodeHandle& m_node;
+
+    tf::TransformBroadcaster camera_to_marker_tf_broadcaster;
+    tf::TransformBroadcaster marker_to_base_tf_broadcaster;
+    tf::TransformBroadcaster world_to_base_tf_broadcaster;
+    tf::TransformListener    listener;
     
     vector< cv::Point2f > marker_center;
     cv::Ptr<cv::aruco::Dictionary> dictionary;
@@ -93,10 +99,7 @@ public:
     Eigen::Matrix<double,3,3> camera_matix;
     Eigen::Matrix<double,3,3> camera_matix_inverse;
   
-    tf::TransformBroadcaster camera_to_marker_tf_broadcaster;
-    tf::TransformBroadcaster marker_to_base_tf_broadcaster;
-    tf::TransformBroadcaster world_to_base_tf_broadcaster;
-    tf::TransformListener    listener;
+    
 
     ros::Publisher m_point_stamped_publisher;
     ros::ServiceClient client_pose;
@@ -116,6 +119,8 @@ public:
     geometry_msgs::PointStamped camera_stamped_points_msgs;
 
     map< string, vector< cv::Point2f > > pixel_points;
+
+    string camera_frame = "camera_color_optical_frame";
 
 };
 
@@ -254,7 +259,7 @@ void Handeye::getMarker(cv::Mat& marker_image, vector<cv::Point2f>& marker_cente
             
         cv::aruco::detectMarkers(marker_image, dictionary, this->marker_corners, ids);
         cv::aruco::drawDetectedMarkers(marker_image, this->marker_corners, ids);
-        cv::aruco::estimatePoseSingleMarkers(this->marker_corners, 0.0525, this->camera_matrix, this->dist_coeffs, rotate_vecs, trans_vecs);//0.1645
+        cv::aruco::estimatePoseSingleMarkers(this->marker_corners, 0.0880, this->camera_matrix, this->dist_coeffs, rotate_vecs, trans_vecs);//0.1645
 
         if ( rotate_vecs.empty()&&trans_vecs.empty()  ){
             ROS_ERROR("No Marker detected!!!");
@@ -335,22 +340,22 @@ void Handeye::sendMarkerTf(vector<cv::Vec3d>& marker_rotate_vecs,vector<cv::Vec3
 
 void Handeye::publishTarget2BaseTF()
 { 
-    // cv::Mat rotated_matrix(3,3,CV_64FC1);
-    // rotated_matrix.at<float>(0,0)=  0.0; rotated_matrix.at<float>(0,1)= 1.0; rotated_matrix.at<float>(0,2)= 0.0;
-    // rotated_matrix.at<float>(1,0)= -1.0; rotated_matrix.at<float>(1,1)= 0.0; rotated_matrix.at<float>(1,2)= 0.0;
-    // rotated_matrix.at<float>(2,0)=  0.0; rotated_matrix.at<float>(2,1)= 0.0; rotated_matrix.at<float>(2,2)= 1.0;
-
-    // tf::Matrix3x3 tf_rotated_matrix(
-    // rotated_matrix.at<float>(0,0), rotated_matrix.at<float>(0,1), rotated_matrix.at<float>(0,2),
-    // rotated_matrix.at<float>(1,0), rotated_matrix.at<float>(1,1), rotated_matrix.at<float>(1,2),
-    // rotated_matrix.at<float>(2,0), rotated_matrix.at<float>(2,1), rotated_matrix.at<float>(2,2));
     tf::Transform transform;
+    tf::Quaternion q;
+
     transform.setOrigin( tf::Vector3( -0.0205, 0.2635, 0.0000) );
 
-    tf::Quaternion q;
     q.setRPY(0.00,0.00,0.00);
     transform.setRotation(q);
+
     this->marker_to_base_tf_broadcaster.sendTransform(tf::StampedTransform(transform, ros::Time::now(),"target_marker","magician_base"));
+
+    transform.setOrigin( tf::Vector3( 0.0000, 0.0000, 0.127424) );
+
+    q.setRPY(0.00,0.00,0.00);
+    transform.setRotation(q);
+
+    this->marker_to_base_tf_broadcaster.sendTransform(tf::StampedTransform(transform, ros::Time::now(),"magician_base","magician_origin"));
 }
 
 void Handeye::publishWorld2BaseTF()
@@ -380,29 +385,35 @@ void Handeye::cameraAxisCalculation( string color )
 
         }
 
-        //遍历每种颜色的每一个像素点得到深度值
+        //遍历每种颜色的每一个像素点得到深度值,并得到机器人坐标系的坐标
         for ( int i = 0; i < this->pixel_points[color].size(); i++ ) {
 
             float Zc;
+            Zc = this->depth_align_picture.at< unsigned short >( pixel_points[color][i].y, pixel_points[color][i].x );
+            cout<<"第"<<i<<"个角点的深度值是"<<Zc<<endl;
+            Zc /= 1000;
 
-            if ( this->depth_align_picture.empty() == false) {
-
-                Zc = this->depth_align_picture.at< unsigned short >( pixel_points[color][i].y, pixel_points[color][i].x );
-                cout<<"第"<<i<<"个角点的深度值是"<<Zc<<endl;
-                Zc /= 1000;
-
-            } else {
-
-                ROS_ERROR(" align depth picture lost!");
-                return;
-
-            }
-        
             double Xcam = ( pixel_points[color][i].x - this->camera_matrix.at<double>(0,2) )*Zc*( 1/this->camera_matrix.at<double>(0,0) );
             double Ycam = ( pixel_points[color][i].y - this->camera_matrix.at<double>(1,2) )*Zc*( 1/this->camera_matrix.at<double>(1,1) );
             float  Zcam = Zc;
 
-  
-    }    
-}
+            geometry_msgs::PointStamped pin;
+            pin.header.frame_id = "camera_color_optical_frame";
+            pin.header.stamp = ros::Time::now();
+
+            geometry_msgs::PointStamped pout;
+                    
+            try {
+
+                this->listener.transformPoint("", pin, pout);
+
+            } catch ( tf::TransformException &ex ) {
+
+                ROS_ERROR("%s",ex.what());
+                ros::Duration(1.0).sleep();
+
+            }    
+
+        }
+    }
 }
