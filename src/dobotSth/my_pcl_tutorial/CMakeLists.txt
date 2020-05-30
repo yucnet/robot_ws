@@ -120,7 +120,7 @@ include_directories(
 # include
   ${catkin_INCLUDE_DIRS}
 )
-
+message( " ${catkin_INCLUDE_DIRS}")
 add_executable(example src/work1.cpp)
 target_link_libraries(example ${catkin_LIBRARIES})
 

@@ -18,40 +18,6 @@ using namespace std;
 
 class dobotTask 
 {
-
-    public:
-
-    dobotTask(ros::NodeHandle& node) : node(node){
-
-        this->alarmClear();
-        this->endEffectorParamsSet();
-
-    }
-
-    ~dobotTask() = default;
-
-
-    void getDeviceSN();
-    void goHome();
-
-
-
-    void alarmState();
-    void alarmClear();
-       
-    void updateCurrentPose();
-    void goToPoint();
-    void pointLimitJudge();
-
-    void endEffectorParamsSet();
-    void pick();
-    void place();
-
-    void ifDestination();
-
-    
- 
-
     public:
 
     ros::NodeHandle node;
@@ -66,9 +32,56 @@ class dobotTask
     vector<int> current_pose;
 
     map< string, vector< cv::Point3f > > targetpoints;
-    //vector< cv::Point3f>  
 
+    bool isworking = 0;
+
+    public:
+
+    dobotTask(ros::NodeHandle& node) : node(node){
+
+        this->alarmClear();
+        this->endEffectorParamsSet();
+
+    }
+
+    ~dobotTask() = default;
+
+    void getDeviceSN();
+    void goHome();
+
+    void alarmState();
+    void alarmClear();
+       
+    void updateCurrentPose();
+    void goToPoint( float x, float y, float z );
+    void pointLimitJudge();
+
+    void endEffectorParamsSet();
+    void pick();
+    void place();
+
+    void ifDestination();
+
+    void toPrePose();
+
+    
+ 
+
+  
 };
+
+void dobotTask::toPrePose()
+{
+    client = this->node.serviceClient<dobot::SetPTPCmd>("/DobotServer/SetPTPCmd");
+    dobot::SetPTPCmd srv;
+
+    srv.request.ptpMode = 0;
+    srv.request.x = 207;
+    srv.request.y = -75;
+    srv.request.z = -3;
+    client.call(srv);
+
+}
 
 void dobotTask::updateCurrentPose()
 {
@@ -79,6 +92,7 @@ void dobotTask::updateCurrentPose()
     this->current_pose.push_back(static_cast<int>(srv.response.x));
     this->current_pose.push_back(static_cast<int>(srv.response.y));
     this->current_pose.push_back(static_cast<int>(srv.response.z));
+
 }
 
 void dobotTask::goHome()
@@ -94,16 +108,19 @@ void dobotTask::goHome()
     
 }
 
-void dobotTask::goToPoint()
+void dobotTask::goToPoint( float x, float y, float z )
 {
+    cout<<endl<<"去那一个点"<<endl;
 
     this->client = this->node.serviceClient<dobot::SetPTPCmd>("/DobotServer/SetPTPCmd");
     dobot::SetPTPCmd srv;
     srv.request.ptpMode = 0;
-    srv.request.x = 0;
-    srv.request.y = 0;
-    srv.request.z = 10;
+    cout<< x*1000 <<" : "<< y*1000 <<" : "<< z*1000 << endl;
+    srv.request.x = x*1000;
+    srv.request.y = y*1000;
+    srv.request.z = z*1000;
     client.call(srv);
+    cout<<srv.response.result<<endl;
 
 }
 

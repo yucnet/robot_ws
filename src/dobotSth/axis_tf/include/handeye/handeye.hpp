@@ -31,6 +31,9 @@ vector<int> hsvblue   ={0, 100, 124,  50, 255, 55, 255};
 vector<int> hsvgreen  ={0, 45,   77,  50, 255, 55, 255};
 vector<int> hsvpurple ={0, 125, 155,  50, 255, 55, 255};
 
+pthread_mutex_t mutex;
+
+using namespace std;
 
 class Handeye final : public dobotTask
 {
@@ -38,6 +41,7 @@ public:
     Handeye(ros::NodeHandle& node):
     m_node(node), dobotTask(node)
     {   
+        pthread_mutex_init(&mutex, NULL);
         
 
         this->camera_matrix = (cv::Mat_<double>(3,3) <<   921.386962890625,             0.0, 629.8939819335938,  
@@ -65,7 +69,6 @@ public:
     void cameraAxisCalculation(string color);
     void compute(string color);
 
-
     void callbackImage(const sensor_msgs::ImageConstPtr& msg);
     void alignDepthcallbackImage(const sensor_msgs::ImageConstPtr& msg);
     void loadCalibrationFiles(string& input_path, cv::Mat& camera_matrix, cv::Mat& distcoeffs, double scale);
@@ -75,6 +78,10 @@ public:
     void publishTarget2BaseTF();
     void publishWorld2BaseTF();
     void searchTF();
+
+    void workStateJudge();
+
+    void testCalculation();
 
 public:
    
@@ -99,8 +106,6 @@ public:
     Eigen::Matrix<double,3,3> camera_matix;
     Eigen::Matrix<double,3,3> camera_matix_inverse;
   
-    
-
     ros::Publisher m_point_stamped_publisher;
     ros::ServiceClient client_pose;
     image_transport::Subscriber m_image_sub;
@@ -117,12 +122,14 @@ public:
     //vector< vector <cv::Point2f > > marker_corners
 
     geometry_msgs::PointStamped camera_stamped_points_msgs;
+    geometry_msgs::PointStamped pout;
 
     map< string, vector< cv::Point2f > > pixel_points;
 
     string camera_frame = "camera_color_optical_frame";
 
 };
+
 
 void Handeye::process( vector <int> hsv_, string color )
 {
@@ -146,25 +153,32 @@ void Handeye::process( vector <int> hsv_, string color )
 
     }
 
-    
     vector<cv::Rect> rect;
     for(int i = 0;i <this->contours.size(); i++){
 
-    rect.push_back(cv::boundingRect(this->contours[i]));
+        cv::RotatedRect Rrec = minAreaRect(contours[i]); 
+        cv::Point2f P[4];
+ 
+		Rrec.points(P);
 
-    if ( rect[i].area() > 1500 ) {
+        rect.push_back( cv::Rect(P[0], P[2]) );
+        //rect.push_back(cv::boundingRect(this->contours[i]));
 
-        cv::rectangle(drawmap, rect[i],cv::Scalar(0,0,255),3);
-        cv::Point2f center(0.5*(rect[i].tl().x+rect[i].br().x), 0.5*(rect[i].tl().y+rect[i].br().y));
-        this->points.push_back(center);
+        if ( rect[i].area() > 1500 ) {
 
-        this->pixel_points[color].push_back(center);
+            cv::rectangle(drawmap, rect[i],cv::Scalar(0,0,255),3);
+            cv::Point2f center(0.5*(rect[i].tl().x+rect[i].br().x), 0.5*(rect[i].tl().y+rect[i].br().y));
+            this->points.push_back(center);
 
+            this->pixel_points[color].push_back(center);
+
+        }
+
+    //cout<< "we detected " << this->pixel_points[color].size() << "contour(s)" <<endl;
     }
 
-    cout<< "we detected " << this->pixel_points[color].size() << "contour(s)" <<endl;
+    cv::imwrite("/home/zhangeaky/color.jpg", drawmap);
 
-    }
 }
 
 void Handeye::searchTF()
@@ -183,8 +197,9 @@ void Handeye::searchTF()
 
 void Handeye::callbackImage(const sensor_msgs::ImageConstPtr& msg)
 {
-    cout<<endl<<endl<<"回调"<<"----------"<<endl;
-    cout << msg->header.frame_id << endl;
+    cout<<endl<<"回调1: "<<endl;
+
+   
 
     cv_bridge::CvImagePtr cv_ptr;
 
@@ -198,25 +213,27 @@ void Handeye::callbackImage(const sensor_msgs::ImageConstPtr& msg)
         return;
     }
 
-    this->picture = cv_ptr->image.clone();
-    cv::Mat& paper = this->picture;
-    getMarker(paper,this->marker_center);
-    this->process(hsvblue, "blue");
-    // this->process(hsvred, "red");
-    // this->process(hsvgreen, "yellow");
-    // this->process(hsvpurple, "purple");
-  
-    cv::imshow("callbackImage",paper);
-    cv::waitKey(1); 
-    cout<<"----------"<<endl;
-    
+    getMarker(cv_ptr->image,this->marker_center);
+
+    if ( isworking == 1 ) {
+
+        ROS_INFO("主线程正在工作");
+
+    }
+
+    this->picture = cv_ptr->image.clone();    
 }
 
 void Handeye::alignDepthcallbackImage(const sensor_msgs::ImageConstPtr& msg)
 {
-    cout<<endl<<endl<<"align回调"<<"----------"<<endl;;
-    cout<<" Align_depth_frame: " << msg->header.frame_id << endl;
 
+    if ( isworking == 1 ) {
+
+        ROS_INFO("主线程正在工作");
+
+    }
+
+    cout<<endl<<" align "<<endl;
     cv_bridge::CvImagePtr cv_ptr;
 
     try
@@ -231,21 +248,8 @@ void Handeye::alignDepthcallbackImage(const sensor_msgs::ImageConstPtr& msg)
 
     this->depth_align_picture = cv_ptr->image;
     cv::medianBlur(this->depth_align_picture, this->depth_align_picture, 3);
-
-
-
-    this->cameraAxisCalculation("red");
-    this->cameraAxisCalculation("yellow");
-    this->cameraAxisCalculation("green");
-    this->cameraAxisCalculation("blue");
-    this->cameraAxisCalculation("purple");
-
-
-
-
-
-    cv::imshow("align", cv_ptr->image);
-    cout<<"----------"<<endl<<endl;
+    //cameraAxisCalculation("red");
+    testCalculation();
 
 }
 
@@ -261,14 +265,15 @@ void Handeye::getMarker(cv::Mat& marker_image, vector<cv::Point2f>& marker_cente
         cv::aruco::drawDetectedMarkers(marker_image, this->marker_corners, ids);
         cv::aruco::estimatePoseSingleMarkers(this->marker_corners, 0.0880, this->camera_matrix, this->dist_coeffs, rotate_vecs, trans_vecs);//0.1645
 
-        if ( rotate_vecs.empty()&&trans_vecs.empty()  ){
+        if ( rotate_vecs.empty()&&trans_vecs.empty()  ) {
+
             ROS_ERROR("No Marker detected!!!");
             return;
 
         } else {
-            
-            cout << "ID of the marker is: " << ids[0] << endl;
-            cv::aruco::drawAxis(marker_image, camera_matrix, dist_coeffs ,rotate_vecs, trans_vecs, 0.1); 
+            //cout << "二维码数量:" << ids.size() << endl;
+            //cout << "ID of the marker is: " << ids[0] << endl;
+            //cv::aruco::drawAxis(marker_image, camera_matrix, dist_coeffs ,rotate_vecs, trans_vecs, 0.1); 
             //getMarkerCoordinate(corners, ids, marker_center);
         }  
 
@@ -279,7 +284,9 @@ void Handeye::getMarker(cv::Mat& marker_image, vector<cv::Point2f>& marker_cente
             cv::circle( pic, marker_corners[0][i], 2, (255,0,0), 5 );
 
         }
-         cv::imshow("maker", pic);
+        
+        cv::imshow("maker", pic);
+        cv::waitKey(1);
             //cout<<trans_vecs[0]<<endl;
             
             //cv::circle(marker_image,point2,2,(255,0,0),5);
@@ -306,11 +313,12 @@ void Handeye::getMarkerCoordinate(vector < vector<cv::Point2f> >& corners, vecto
 
 void Handeye::sendMarkerTf(vector<cv::Vec3d>& marker_rotate_vecs,vector<cv::Vec3d>& marker_trans_vecs)                 
 {
-    if(marker_rotate_vecs.size()==0&&marker_rotate_vecs.size()==0){
+    if( marker_rotate_vecs.size()==0&&marker_rotate_vecs.size()==0 ){
 
             cout<<"haven't received any vecs yet"<<endl;
 
-    }else{
+    } else {
+
             cv::Mat rotated_matrix(3, 3, CV_64FC1);
 
         
@@ -324,17 +332,9 @@ void Handeye::sendMarkerTf(vector<cv::Vec3d>& marker_rotate_vecs,vector<cv::Vec3
             tf::Vector3 tf_tvec(marker_trans_vecs[0][0],marker_trans_vecs[0][1],marker_trans_vecs[0][2]);
           
             tf::Transform transform(tf_rotated_matrix, tf_tvec);
-            //transform = transform.inverse();
-            //Eigen::Quaterniond q_eigen;
-            //tf::quaternionTFToEigen(transform.getRotation(), q_eigen);
-            //temp_rot = q_eigen;
-            //tf::vectorTFToEigen(transform.getOrigin(), trans);
-            //ostringstream oss;
-            //oss << "camera_" << ids[0];
             this->camera_to_marker_tf_broadcaster.sendTransform(tf::StampedTransform(transform, ros::Time::now(), "camera_color_optical_frame", "target_marker"));  
             this->publishTarget2BaseTF();
-            ROS_INFO("TF successfully sent!");
-            
+            //ROS_INFO("TF successfully sent!"); 
     } 
 }
 
@@ -345,7 +345,7 @@ void Handeye::publishTarget2BaseTF()
 
     transform.setOrigin( tf::Vector3( -0.0205, 0.2635, 0.0000) );
 
-    q.setRPY(0.00,0.00,0.00);
+    q.setRPY(0.00,0.00,-1.57);
     transform.setRotation(q);
 
     this->marker_to_base_tf_broadcaster.sendTransform(tf::StampedTransform(transform, ros::Time::now(),"target_marker","magician_base"));
@@ -379,41 +379,105 @@ void Handeye::cameraAxisCalculation( string color )
 
     } else {
         
-        if ( pixel_points[color].size() == 0 ) {
+        // if ( pixel_points[color].size() == 0 ) {
 
-            return;
+        //     ROS_ERROR("No %s detected", color);
 
-        }
+        //     return;
+
+        // }
 
         //遍历每种颜色的每一个像素点得到深度值,并得到机器人坐标系的坐标
-        for ( int i = 0; i < this->pixel_points[color].size(); i++ ) {
+        for ( int i = 0; i < this->marker_corners[0].size(); i++ ) {
+            cout<< "角点: "<<marker_corners[0].size() <<endl;
 
             float Zc;
-            Zc = this->depth_align_picture.at< unsigned short >( pixel_points[color][i].y, pixel_points[color][i].x );
+            Zc = this->depth_align_picture.at< unsigned short >(marker_corners[0][i].y,marker_corners[0][i].x );
             cout<<"第"<<i<<"个角点的深度值是"<<Zc<<endl;
             Zc /= 1000;
 
-            double Xcam = ( pixel_points[color][i].x - this->camera_matrix.at<double>(0,2) )*Zc*( 1/this->camera_matrix.at<double>(0,0) );
-            double Ycam = ( pixel_points[color][i].y - this->camera_matrix.at<double>(1,2) )*Zc*( 1/this->camera_matrix.at<double>(1,1) );
+            double Xcam = ( marker_corners[0][i].x - this->camera_matrix.at<double>(0,2) )*Zc*( 1/this->camera_matrix.at<double>(0,0) );
+            double Ycam = ( marker_corners[0][i].y - this->camera_matrix.at<double>(1,2) )*Zc*( 1/this->camera_matrix.at<double>(1,1) );
             float  Zcam = Zc;
+
+            ros::Time now = ros::Time::now();
 
             geometry_msgs::PointStamped pin;
             pin.header.frame_id = "camera_color_optical_frame";
-            pin.header.stamp = ros::Time::now();
+            //pin.header.frame_id = "camera_color_frame";
+
+            pin.header.stamp = now;
+
+            pin.point.x = Xcam;
+            pin.point.x = Ycam;
+            pin.point.x = Zcam;
+
+            cout<< Xcam <<" : "<< Ycam <<" : "<< Zcam <<endl;
+
+            this->m_point_stamped_publisher.publish( pin );
 
             geometry_msgs::PointStamped pout;
-                    
+           
             try {
 
-                this->listener.transformPoint("", pin, pout);
+                // this->listener.waitForTransform("camera_color_optical_frame", "target_marker",
+                //               ros::Time(0), ros::Duration(3.0));
+                this->listener.transformPoint("target_marker", ros::Time(0),  pin, "camera_color_optical_frame", pout);
 
             } catch ( tf::TransformException &ex ) {
 
                 ROS_ERROR("%s",ex.what());
                 ros::Duration(1.0).sleep();
 
-            }    
+            }   
+            //this->m_point_stamped_publisher.publish( pout );
+
+            targetpoints[color].push_back( cv::Point3f( pout.point.x, pout.point.y,pout.point.z ) ); 
 
         }
     }
+}
+
+
+void Handeye::testCalculation(  )
+{
+        for ( int i = 0; i < this->marker_corners[0].size(); i++ ) {
+
+            cout<< "二维码角点: "<<marker_corners[0].size() <<endl;
+
+            float Zc;
+            Zc = this->depth_align_picture.at< unsigned short >(marker_corners[0][i].y,marker_corners[0][i].x );
+            cout<<"第"<<i<<"个角点的深度值是"<<Zc<<endl;
+            Zc /= 1000;
+
+            double Xcam = ( marker_corners[0][i].x - this->camera_matrix.at<double>(0,2) )*Zc*( 1/this->camera_matrix.at<double>(0,0) );
+            double Ycam = ( marker_corners[0][i].y - this->camera_matrix.at<double>(1,2) )*Zc*( 1/this->camera_matrix.at<double>(1,1) );
+            float  Zcam = Zc;
+
+
+            camera_stamped_points_msgs.point.x = Xcam;
+            camera_stamped_points_msgs.point.y = Ycam;
+            camera_stamped_points_msgs.point.z = Zc;
+            camera_stamped_points_msgs.header.stamp = ros::Time::now();
+            //this->m_point_stamped_publisher.publish(camera_stamped_points_msgs);
+
+            geometry_msgs::PointStamped pout;
+           
+            try {
+
+                // this->listener.waitForTransform("camera_color_optical_frame", "target_marker",
+                //               ros::Time(0), ros::Duration(3.0));
+                this->listener.transformPoint("target_marker", ros::Time(0),  camera_stamped_points_msgs, "camera_color_optical_frame", pout);
+
+            } catch ( tf::TransformException &ex ) {
+
+                ROS_ERROR("%s",ex.what());
+                ros::Duration(1.0).sleep();
+
+            } 
+
+            this->m_point_stamped_publisher.publish(pout);  
+            cout<< "x: " <<pout.point.x << "y: " << pout.point.y << "z: " << pout.point.z <<endl;
+
+        }
 }
