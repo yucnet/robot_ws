@@ -12,6 +12,7 @@ find_package(catkin REQUIRED COMPONENTS
   pcl_ros
   roscpp
   sensor_msgs
+  OpenCV
 )
 
 ## System dependencies are found with CMake's conventions
@@ -120,10 +121,16 @@ include_directories(
 # include
   ${catkin_INCLUDE_DIRS}
 )
-message( " ${catkin_INCLUDE_DIRS}")
-add_executable(example src/work1.cpp)
-target_link_libraries(example ${catkin_LIBRARIES})
+message("!!!!!!!!!!!!!!!!!!!!!!!!!")
 
+message( "${OpenCV_LIBRARIES}")
+
+message("!!!!!!!!!!!!!!!!!!!!!!!!!")
+
+
+
+add_executable(example src/work1.cpp)
+target_link_libraries(example ${catkin_LIBRARIES}  ${OpenCV_LIBRARIES})
 
 add_executable(downsample src/downsample.cpp)
 target_link_libraries(downsample ${catkin_LIBRARIES})

@@ -389,6 +389,7 @@ void Handeye::cameraAxisCalculation( string color )
 
         //遍历每种颜色的每一个像素点得到深度值,并得到机器人坐标系的坐标
         for ( int i = 0; i < this->marker_corners[0].size(); i++ ) {
+
             cout<< "角点: "<<marker_corners[0].size() <<endl;
 
             float Zc;
@@ -403,7 +404,9 @@ void Handeye::cameraAxisCalculation( string color )
             ros::Time now = ros::Time::now();
 
             geometry_msgs::PointStamped pin;
+
             pin.header.frame_id = "camera_color_optical_frame";
+            
             //pin.header.frame_id = "camera_color_frame";
 
             pin.header.stamp = now;
@@ -439,7 +442,8 @@ void Handeye::cameraAxisCalculation( string color )
 }
 
 
-void Handeye::testCalculation(  )
+
+void Handeye::testCalculation( )
 {
         for ( int i = 0; i < this->marker_corners[0].size(); i++ ) {
 
